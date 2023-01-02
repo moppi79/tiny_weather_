@@ -15,7 +15,7 @@ from i2c import *
 from multiplex_tca9548 import *
 from disp_pcf8574 import *
 #from disp_new_pcf8574 import *
-
+from menue_disp import *
 ###################### Hilfs Funktionen #####################
 
 def get_time ():
@@ -104,14 +104,50 @@ def loop_funk ():
 	gp_list.install(26,'out')
 	gp_list.install(21,'in')
 	gp_list.install(19,'in')
+	gp_list.install(20,'in')
 	
 	
-	time_sensor = (timer_get(1))
+	time_sensor = (timer_get(5))
+	time_light = ''
+	time_display = (timer_get(2))
 	
-	time_display = (timer_get(3))
-	
-	on_blink = (timer_get(4))
+	on_blink = (timer_get(1))
 	ms_int_timer_blink = False
+	#but = {'select':'19','ok':'20','light':'21'}
+	################Menue Diplay Steuerung ##################
+	menue_mini = menue_disp(speicher,2)
+	
+	men1 = {}
+	men1[1] = '{uhr:nan}'
+	men1[2] = 't:{innen:temp} h:{innen:hum}'
+	menue_mini.info_add(men1)
+
+	men1 = {}
+	men1[1] = '{uhr:nan}'
+	men1[2] = '19:{gpio:19} 21:{gpio:21} 20:{gpio:20}'
+	menue_mini.info_add(men1)
+	
+	
+	but = {'select':'20','ok':'21','light':'19'}
+	menue_big = menue_disp(speicher,4,but)
+	
+	men1 = {}
+	men1[1] = 'WZ -temp'
+	men1[2] = 'temp:{innen:temp}'
+	men1[3] = 'Hydro:{innen:hum}'
+	men1[4] = '{uhr:nan}'
+	menue_big.info_add(men1)
+	
+	men1 = {}
+	men1[1] = 'WZ -sonstig'
+	men1[2] = 'Druck:{innen:hkp}'
+	men1[3] = 'lux:{innen:lux}'
+	men1[4] = '{uhr:nan}'
+	menue_big.info_add(men1)
+	
+	
+	################Menue Diplay Steuerung [ENDE] ##################
+	
 	while loop == 'true':
 		time_now = get_time()
 		#print (aktuelle_sec)
@@ -125,17 +161,9 @@ def loop_funk ():
 			print_var('on_blink','')
 			print(gp_new)
 			print('############')
-			if 19 in gp_new:
-				if gp_new[19] == 1:
-					l_o_f = 'on'
-				else:
-					
-					l_o_f = 'off'
-					
-				for x in disp_arr:
-					set_multiplex_channel.set_channel(disp_arr[x]['multiplex'])
-					disp_arr[x]['disp'].light_onoff(l_o_f)
-		
+			for x in gp_new:
+				speicher.insert({'room':'gpio',str(x):str(gp_new[x])})
+
 		
 		if on_blink == time_now['akt_sec']:
 			print('here BLINK !!!!')
@@ -186,16 +214,49 @@ def loop_funk ():
 			time_sensor = (timer_get(5))
 		
 		if time_display == time_now['akt_sec']:	
-			text[1] = 'temp:'+str(speicher.call_now('innen','temp'))+' hum:'+str(speicher.call_now('innen','hum'))
-			text[2] = 'lux:'+str(speicher.call_now('innen','lux'))
-			text[3] = 'HkP:'+str(speicher.call_now('innen','hkp'))
-			disp_arr[0]['disp'].insert_text(text)
+			#text[1] = 'temp:'+str(speicher.call_now('innen','temp'))+' hum:'+str(speicher.call_now('innen','hum'))
+			#text[2] = 'lux:'+str(speicher.call_now('innen','lux'))
+			#text[3] = 'HkP:'+str(speicher.call_now('innen','hkp'))
+			#disp_arr[0]['disp'].insert_text(text)
 			time_display = (timer_get(5))
+			menue_mini.info_rotate()
+			menue_big.info_rotate()
 			#dis_test.set_text(text_put())
+		
+		
+		
 		time_txt = ''+time.strftime('%d.%m %H:%M:%S')
-		disp_arr[0]['disp'].insert_text({4:time_txt})
-		disp_arr[1]['disp'].insert_text({1:time_txt})
-
+		#disp_arr[0]['disp'].insert_text({4:time_txt})
+		disp_arr[0]['disp'].insert_text(menue_big.disp_refresh())
+		#disp_arr[1]['disp'].insert_text({1:time_txt})
+		disp_arr[1]['disp'].insert_text(menue_mini.disp_refresh())
+		
+		var_1 = speicher.call_now('gpio','19')
+		var_2 = speicher.call_now('gpio','21')
+		var_3 = speicher.call_now('gpio','20')
+		#disp_arr[1]['disp'].insert_text({2:'19='+var_1+',21='+var_2+',20='+var_3})
+		
+		
+		if speicher.call_now('system','lcd_light') == '1':
+			if var_1 == '1':
+				time_light = (timer_get(10))
+			
+			if time_light == time_now['akt_sec']:
+				speicher.insert({'room':'system','lcd_light':'0'})
+				for x in disp_arr:
+					set_multiplex_channel.set_channel(disp_arr[x]['multiplex'])
+					disp_arr[x]['disp'].light_onoff('off')
+				
+		else:
+			if var_1 == '1':
+				time_light = (timer_get(10))
+				speicher.insert({'room':'system','lcd_light':'1'})
+				for x in disp_arr:
+					set_multiplex_channel.set_channel(disp_arr[x]['multiplex'])
+					disp_arr[x]['disp'].light_onoff('on')
+					
+			
+				
 		for x in disp_arr:
 			set_multiplex_channel.set_channel(disp_arr[x]['multiplex'])
 			disp_arr[x]['disp'].set_text()

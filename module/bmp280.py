@@ -82,4 +82,4 @@ class bmp280():
 		pressure += self.height 
 		print (pressure)
 		print (cTemp)
-		return({'hkp':round(pressure,1),'room':self.name})
+		return({'hkp':str(round(pressure,1)),'room':self.name})
